@@ -3,6 +3,7 @@ package local.agent.pullrequestreviewagent.agent;
 import local.agent.pullrequestreviewagent.ai.AiChatService;
 import local.agent.pullrequestreviewagent.git.ChangedFile;
 import local.agent.pullrequestreviewagent.review.ReviewResult;
+import local.agent.pullrequestreviewagent.tools.RepositoryTools;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,10 +19,12 @@ public class PullRequestReviewAgent {
         this.promptFactory = promptFactory;
     }
 
-    public ReviewResult review(String baseBranch, String reviewBranch, List<ChangedFile> changedFiles) {
+    public ReviewResult review(String baseBranch, String reviewBranch, List<ChangedFile> changedFiles,
+                                RepositoryTools repositoryTools) {
         return aiChatService.chat(
                 promptFactory.systemPrompt(),
                 promptFactory.userPrompt(baseBranch, reviewBranch, changedFiles),
-                ReviewResult.class);
+                ReviewResult.class,
+                repositoryTools);
     }
 }

@@ -103,10 +103,38 @@
 
 .loading-panel {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
   background: var(--accent-bg);
   color: var(--text-h);
+}
+
+.loading-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.progress-log {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.progress-log li {
+  color: var(--text);
+}
+
+.progress-log li.progress-current {
+  color: var(--text-h);
+  font-weight: 600;
 }
 
 .error-panel {

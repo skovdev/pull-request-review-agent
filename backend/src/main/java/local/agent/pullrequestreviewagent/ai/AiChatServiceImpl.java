@@ -2,7 +2,9 @@ package local.agent.pullrequestreviewagent.ai;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.ai.chat.client.ChatClient;
+
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,7 +20,7 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     @Override
-    public <T> T chat(String systemPrompt, String userPrompt, Class<T> responseType) {
+    public <T> T chat(String systemPrompt, String userPrompt, Class<T> responseType, Object... tools) {
         log.info("Sending prompts to AI model");
         Exception lastFailure = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -26,6 +28,7 @@ public class AiChatServiceImpl implements AiChatService {
                 return chatClient.prompt()
                         .system(systemPrompt)
                         .user(userPrompt)
+                        .tools(tools)
                         .call()
                         .entity(responseType);
             } catch (Exception e) {

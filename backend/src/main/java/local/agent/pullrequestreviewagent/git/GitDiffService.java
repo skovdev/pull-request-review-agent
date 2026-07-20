@@ -148,15 +148,8 @@ public class GitDiffService {
         return new ChangedFile(path, mapChangeType(entry.getChangeType()), diff);
     }
 
-    private ObjectId resolve(Repository repository, String branch) throws IOException {
-        ObjectId id = repository.resolve(branch);
-        if (id == null) {
-            id = repository.resolve("refs/remotes/origin/" + branch);
-        }
-        if (id == null) {
-            throw new GitRepositoryException("Unknown branch: " + branch);
-        }
-        return id;
+    private ObjectId resolve(Repository repository, String branch) {
+        return GitRefs.resolve(repository, branch);
     }
 
     private ChangedFile.ChangeType mapChangeType(DiffEntry.ChangeType changeType) {

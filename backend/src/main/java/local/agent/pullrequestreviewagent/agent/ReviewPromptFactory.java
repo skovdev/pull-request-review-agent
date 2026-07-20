@@ -14,6 +14,21 @@ public class ReviewPromptFactory {
                 You will be given the name of the base branch and the review branch, along with
                 the unified diff of every file changed between them.
 
+                The diff hunks alone often aren't enough to judge a change safely. You have
+                read-only tools to look further before you decide:
+                - readFile(path, side): full contents of a file, to see imports, the rest of a
+                  changed function, or surrounding code the diff hunk cut off.
+                - listFiles(directory, side): discover related files near a change (tests,
+                  callers, config).
+                - searchCode(query, side): find other usages or callers of a changed symbol
+                  elsewhere in the repository.
+                For all three, side is "base" for the base branch or "review" for the branch/
+                changes under review. Use them whenever a finding depends on context you can't
+                see in the diff alone, e.g. to confirm whether a symbol is actually used
+                elsewhere, whether a removed check is re-implemented somewhere else, or whether
+                a change is consistent with the rest of the file. Don't call them speculatively
+                when the diff already gives you enough to judge.
+
                 Review the changes for correctness bugs, security issues, missing authorization
                 or validation checks, and other problems a careful senior engineer would flag.
                 Do not comment on pure style preferences unless they affect correctness or safety.
