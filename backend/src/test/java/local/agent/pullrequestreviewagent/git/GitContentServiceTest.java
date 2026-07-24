@@ -1,5 +1,7 @@
 package local.agent.pullrequestreviewagent.git;
 
+import local.agent.pullrequestreviewagent.config.ReviewProperties;
+
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.Repository;
 
@@ -22,7 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GitContentServiceTest {
 
-    private final GitContentService gitContentService = new GitContentService();
+    private final GitContentService gitContentService =
+            new GitContentService(new ReviewProperties(6_000, 60_000, 8_000, 200, 50, 2_000, 20, 3, 300_000));
 
     @TempDir
     Path repoDir;

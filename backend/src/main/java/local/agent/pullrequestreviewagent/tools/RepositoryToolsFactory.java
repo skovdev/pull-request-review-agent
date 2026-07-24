@@ -1,17 +1,24 @@
 package local.agent.pullrequestreviewagent.tools;
 
+import local.agent.pullrequestreviewagent.config.ReviewProperties;
+
 import local.agent.pullrequestreviewagent.git.GitContentService;
+
 import local.agent.pullrequestreviewagent.progress.ReviewProgressPublisher;
+
 import org.eclipse.jgit.lib.Repository;
+
 import org.springframework.stereotype.Component;
 
 @Component
 public class RepositoryToolsFactory {
 
     private final GitContentService gitContentService;
+    private final int maxToolCallsPerReview;
 
-    public RepositoryToolsFactory(GitContentService gitContentService) {
+    public RepositoryToolsFactory(GitContentService gitContentService, ReviewProperties properties) {
         this.gitContentService = gitContentService;
+        this.maxToolCallsPerReview = properties.maxToolCallsPerReview();
     }
 
     /**
@@ -20,6 +27,6 @@ public class RepositoryToolsFactory {
      */
     public RepositoryTools create(Repository repository, String baseBranch, String reviewRef,
                                    ReviewProgressPublisher progressPublisher) {
-        return new RepositoryTools(repository, gitContentService, baseBranch, reviewRef, progressPublisher);
+        return new RepositoryTools(repository, gitContentService, baseBranch, reviewRef, progressPublisher, maxToolCallsPerReview);
     }
 }

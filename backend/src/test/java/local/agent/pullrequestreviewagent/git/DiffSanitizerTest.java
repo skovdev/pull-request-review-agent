@@ -1,15 +1,18 @@
 package local.agent.pullrequestreviewagent.git;
 
+import local.agent.pullrequestreviewagent.config.ReviewProperties;
+
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DiffSanitizerTest {
 
-    private final DiffSanitizer diffSanitizer = new DiffSanitizer();
+    private final DiffSanitizer diffSanitizer =
+            new DiffSanitizer(new ReviewProperties(6_000, 60_000, 8_000, 200, 50, 2_000, 20, 3, 300_000));
 
     @Test
     void omitsLockfileDiffs() {

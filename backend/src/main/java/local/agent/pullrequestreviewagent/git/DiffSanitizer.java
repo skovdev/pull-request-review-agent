@@ -1,5 +1,7 @@
 package local.agent.pullrequestreviewagent.git;
 
+import local.agent.pullrequestreviewagent.config.ReviewProperties;
+
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -15,9 +17,6 @@ import java.util.regex.Pattern;
 @Component
 public class DiffSanitizer {
 
-    private static final int MAX_CHARS_PER_FILE = 6_000;
-    private static final int MAX_TOTAL_CHARS = 60_000;
-
     private static final List<Pattern> NOISE_PATH_PATTERNS = List.of(
             Pattern.compile(".*/?package-lock\\.json$"),
             Pattern.compile(".*/?npm-shrinkwrap\\.json$"),
@@ -32,9 +31,17 @@ public class DiffSanitizer {
             Pattern.compile("(^|.*/)(node_modules|dist|build|target|vendor)/.*")
     );
 
+    private final int maxCharsPerFile;
+    private final int maxTotalChars;
+
+    public DiffSanitizer(ReviewProperties properties) {
+        this.maxCharsPerFile = properties.maxDiffCharsPerFile();
+        this.maxTotalChars = properties.maxDiffTotalChars();
+    }
+
     public List<ChangedFile> sanitize(List<ChangedFile> changedFiles) {
         List<ChangedFile> result = new ArrayList<>();
-        int remainingBudget = MAX_TOTAL_CHARS;
+        int remainingBudget = maxTotalChars;
 
         for (ChangedFile file : changedFiles) {
             if (isNoise(file.path())) {
@@ -68,11 +75,11 @@ public class DiffSanitizer {
     }
 
     private String truncate(String diff) {
-        if (diff.length() <= MAX_CHARS_PER_FILE) {
+        if (diff.length() <= maxCharsPerFile) {
             return diff;
         }
-        int omitted = diff.length() - MAX_CHARS_PER_FILE;
-        return diff.substring(0, MAX_CHARS_PER_FILE) + "\n... (diff truncated, " + omitted + " more characters)";
+        int omitted = diff.length() - maxCharsPerFile;
+        return diff.substring(0, maxCharsPerFile) + "\n... (diff truncated, " + omitted + " more characters)";
     }
 
     private ChangedFile withDiff(ChangedFile file, String diff) {

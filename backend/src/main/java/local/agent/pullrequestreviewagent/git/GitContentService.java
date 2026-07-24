@@ -1,5 +1,7 @@
 package local.agent.pullrequestreviewagent.git;
 
+import local.agent.pullrequestreviewagent.config.ReviewProperties;
+
 import org.eclipse.jgit.errors.MissingObjectException;
 
 import org.eclipse.jgit.lib.Constants;
@@ -39,32 +41,33 @@ import java.util.stream.Stream;
 @Service
 public class GitContentService {
 
-    private static final int MAX_FILE_BYTES = 8_000;
-    private static final int MAX_LISTED_ENTRIES = 200;
-    private static final int MAX_SEARCH_RESULTS = 50;
-    private static final int MAX_FILES_SCANNED = 2_000;
-
     private static final List<Pattern> SKIPPED_DIRECTORIES = List.of(
             Pattern.compile("(^|.*/)(\\.git|node_modules|dist|build|target|vendor)(/.*|$)"));
 
+    private final int maxFileBytes;
+    private final int maxListedEntries;
+    private final int maxSearchResults;
+    private final int maxFilesScanned;
+
+    public GitContentService(ReviewProperties properties) {
+        this.maxFileBytes = properties.maxFileReadBytes();
+        this.maxListedEntries = properties.maxListedEntries();
+        this.maxSearchResults = properties.maxSearchResults();
+        this.maxFilesScanned = properties.maxFilesScanned();
+    }
+
     public String readFile(Repository repository, String ref, String path) {
-        String normalized = normalizePath(path);
-        if (ref == null) {
-            return readFromWorkingTree(repository, normalized);
-        }
-        return readFromCommit(repository, ref, normalized);
+        return resolveContent(repository, ref, normalizePath(path));
     }
 
     public List<String> listFiles(Repository repository, String ref, String directory) {
         String prefix = normalizePath(directory);
-        List<String> paths = ref == null
-                ? walkWorkingTree(repository)
-                : walkCommit(repository, ref);
+        List<String> paths = resolvePaths(repository, ref);
         List<String> matches = new ArrayList<>();
         for (String path : paths) {
             if (prefix.isEmpty() || path.equals(prefix) || path.startsWith(prefix + "/")) {
                 matches.add(path);
-                if (matches.size() >= MAX_LISTED_ENTRIES) {
+                if (matches.size() >= maxListedEntries) {
                     matches.add("... (more entries omitted)");
                     break;
                 }
@@ -74,27 +77,33 @@ public class GitContentService {
     }
 
     public List<String> searchCode(Repository repository, String ref, String query) {
-        List<String> paths = ref == null
-                ? walkWorkingTree(repository)
-                : walkCommit(repository, ref);
+        List<String> paths = resolvePaths(repository, ref);
         List<String> results = new ArrayList<>();
         int scanned = 0;
         for (String path : paths) {
-            if (scanned++ >= MAX_FILES_SCANNED || results.size() >= MAX_SEARCH_RESULTS) {
+            if (scanned++ >= maxFilesScanned || results.size() >= maxSearchResults) {
                 break;
             }
-            String content = ref == null ? readFromWorkingTree(repository, path) : readFromCommit(repository, ref, path);
+            String content = resolveContent(repository, ref, path);
             if (content == null || content.startsWith("(binary")) {
                 continue;
             }
             String[] lines = content.split("\n", -1);
-            for (int i = 0; i < lines.length && results.size() < MAX_SEARCH_RESULTS; i++) {
+            for (int i = 0; i < lines.length && results.size() < maxSearchResults; i++) {
                 if (lines[i].contains(query)) {
                     results.add(path + ":" + (i + 1) + ": " + lines[i].strip());
                 }
             }
         }
         return results;
+    }
+
+    private String resolveContent(Repository repository, String ref, String path) {
+        return ref == null ? readFromWorkingTree(repository, path) : readFromCommit(repository, ref, path);
+    }
+
+    private List<String> resolvePaths(Repository repository, String ref) {
+        return ref == null ? walkWorkingTree(repository) : walkCommit(repository, ref);
     }
 
     private String readFromWorkingTree(Repository repository, String path) {
@@ -169,7 +178,7 @@ public class GitContentService {
 
     private byte[] readBounded(InputStream in) throws IOException {
         try (in) {
-            return in.readNBytes(MAX_FILE_BYTES);
+            return in.readNBytes(maxFileBytes);
         }
     }
 

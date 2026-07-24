@@ -1,18 +1,26 @@
 package local.agent.pullrequestreviewagent.api;
 
+import local.agent.pullrequestreviewagent.config.ReviewProperties;
+
 import local.agent.pullrequestreviewagent.progress.ReviewProgressPublisher;
+
 import local.agent.pullrequestreviewagent.review.ReviewResult;
 import local.agent.pullrequestreviewagent.review.ReviewService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.http.MediaType;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+
 import java.util.concurrent.Executor;
 
 /**
@@ -29,19 +37,20 @@ import java.util.concurrent.Executor;
 public class ReviewController {
 
     private static final Logger log = LoggerFactory.getLogger(ReviewController.class);
-    private static final long EMITTER_TIMEOUT_MS = 5 * 60 * 1000;
 
     private final ReviewService reviewService;
     private final Executor reviewExecutor;
+    private final long sseEmitterTimeoutMs;
 
-    public ReviewController(ReviewService reviewService, Executor reviewExecutor) {
+    public ReviewController(ReviewService reviewService, Executor reviewExecutor, ReviewProperties properties) {
         this.reviewService = reviewService;
         this.reviewExecutor = reviewExecutor;
+        this.sseEmitterTimeoutMs = properties.sseEmitterTimeoutMs();
     }
 
     @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter startReview(@RequestBody StartReviewRequest request) {
-        SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT_MS);
+        SseEmitter emitter = new SseEmitter(sseEmitterTimeoutMs);
         reviewExecutor.execute(() -> runReview(request, emitter));
         return emitter;
     }

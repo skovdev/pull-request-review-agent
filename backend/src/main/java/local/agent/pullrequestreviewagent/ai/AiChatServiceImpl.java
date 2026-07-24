@@ -1,5 +1,7 @@
 package local.agent.pullrequestreviewagent.ai;
 
+import local.agent.pullrequestreviewagent.config.ReviewProperties;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,19 +13,20 @@ import org.springframework.stereotype.Service;
 public class AiChatServiceImpl implements AiChatService {
 
     private static final Logger log = LoggerFactory.getLogger(AiChatServiceImpl.class);
-    private static final int MAX_ATTEMPTS = 3;
 
     private final ChatClient chatClient;
+    private final int maxAttempts;
 
-    public AiChatServiceImpl(ChatClient chatClient) {
+    public AiChatServiceImpl(ChatClient chatClient, ReviewProperties properties) {
         this.chatClient = chatClient;
+        this.maxAttempts = properties.maxChatAttempts();
     }
 
     @Override
     public <T> T chat(String systemPrompt, String userPrompt, Class<T> responseType, Object... tools) {
         log.info("Sending prompts to AI model");
         Exception lastFailure = null;
-        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 return chatClient.prompt()
                         .system(systemPrompt)
@@ -33,10 +36,10 @@ public class AiChatServiceImpl implements AiChatService {
                         .entity(responseType);
             } catch (Exception e) {
                 lastFailure = e;
-                log.warn("AI chat call failed (attempt {}/{})", attempt, MAX_ATTEMPTS, e);
+                log.warn("AI chat call failed (attempt {}/{})", attempt, maxAttempts, e);
             }
         }
-        log.error("AI chat call failed after {} attempts", MAX_ATTEMPTS, lastFailure);
-        throw new AiChatException("Failed to communicate with AI model after " + MAX_ATTEMPTS + " attempts", lastFailure);
+        log.error("AI chat call failed after {} attempts", maxAttempts, lastFailure);
+        throw new AiChatException("Failed to communicate with AI model after " + maxAttempts + " attempts", lastFailure);
     }
 }

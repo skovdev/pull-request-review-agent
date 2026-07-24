@@ -44,12 +44,12 @@ export async function streamReview(request: StartReviewRequest, handlers: Review
     while ((separatorIndex = buffer.indexOf('\n\n')) !== -1) {
       const rawEvent = buffer.slice(0, separatorIndex);
       buffer = buffer.slice(separatorIndex + 2);
-      dispatchEvent(rawEvent, handlers);
+      dispatchSseEvent(rawEvent, handlers);
     }
   }
 }
 
-function dispatchEvent(rawEvent: string, handlers: ReviewStreamHandlers) {
+function dispatchSseEvent(rawEvent: string, handlers: ReviewStreamHandlers) {
   let eventName = 'message';
   const dataLines: string[] = [];
 

@@ -18,7 +18,6 @@ import java.util.function.Supplier;
  */
 public class RepositoryTools {
 
-    private static final int MAX_CALLS = 20;
     private static final String SIDE_DESCRIPTION =
             "Which side of the review to read from: \"base\" for the base branch, or \"review\" for the branch/changes under review.";
 
@@ -27,19 +26,24 @@ public class RepositoryTools {
     private final String baseBranch;
     private final String reviewRef;
     private final ReviewProgressPublisher progressPublisher;
-    private final AtomicInteger remainingCalls = new AtomicInteger(MAX_CALLS);
+    private final int maxCalls;
+    private final AtomicInteger remainingCalls;
 
     /**
      * @param reviewRef branch/commit name for the review side, or {@code null} when the
      *                  review side is the working tree (uncommitted/untracked changes)
+     * @param maxCalls  total tool calls this instance allows across its lifetime
      */
     public RepositoryTools(Repository repository, GitContentService gitContentService,
-                            String baseBranch, String reviewRef, ReviewProgressPublisher progressPublisher) {
+                            String baseBranch, String reviewRef, ReviewProgressPublisher progressPublisher,
+                            int maxCalls) {
         this.repository = repository;
         this.gitContentService = gitContentService;
         this.baseBranch = baseBranch;
         this.reviewRef = reviewRef;
         this.progressPublisher = progressPublisher;
+        this.maxCalls = maxCalls;
+        this.remainingCalls = new AtomicInteger(maxCalls);
     }
 
     @Tool(description = "Read the full contents of a file, to see context beyond the diff hunks such as " +
@@ -70,13 +74,16 @@ public class RepositoryTools {
         if ("base".equalsIgnoreCase(side)) {
             return baseBranch;
         }
-        return reviewRef;
+        if ("review".equalsIgnoreCase(side)) {
+            return reviewRef;
+        }
+        throw new IllegalArgumentException("Unknown side \"" + side + "\"; expected \"base\" or \"review\".");
     }
 
     private <T> T withBudget(String progressMessage, Supplier<T> call) {
         if (remainingCalls.getAndDecrement() <= 0) {
             throw new ToolBudgetExceededException(
-                    "Tool call budget exceeded (max " + MAX_CALLS + " per review); answer with what you already have.");
+                    "Tool call budget exceeded (max " + maxCalls + " per review); answer with what you already have.");
         }
         progressPublisher.publish(progressMessage);
         return call.get();
