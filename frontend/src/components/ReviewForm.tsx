@@ -8,58 +8,58 @@ interface ReviewFormProps {
 }
 
 export function ReviewForm({ onSubmit, isLoading }: ReviewFormProps) {
-  const [repositoryPath, setRepositoryPath] = useState('');
-  const [baseBranch, setBaseBranch] = useState('main');
-  const [reviewBranch, setReviewBranch] = useState('');
+  const [owner, setOwner] = useState('');
+  const [repo, setRepo] = useState('');
+  const [pullNumber, setPullNumber] = useState('');
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     onSubmit({
-      repositoryPath: repositoryPath.trim(),
-      baseBranch: baseBranch.trim(),
-      reviewBranch: reviewBranch.trim() || undefined,
+      owner: owner.trim(),
+      repo: repo.trim(),
+      pullNumber: Number(pullNumber),
     });
   }
 
   return (
     <form className="review-form" onSubmit={handleSubmit}>
-      <div className="field">
-        <label htmlFor="repositoryPath">Repository path</label>
-        <input
-          id="repositoryPath"
-          type="text"
-          placeholder="/home/user/projects/my-repo"
-          value={repositoryPath}
-          onChange={(e) => setRepositoryPath(e.target.value)}
-          required
-          disabled={isLoading}
-        />
-      </div>
-
       <div className="field-row">
         <div className="field">
-          <label htmlFor="baseBranch">Base branch</label>
+          <label htmlFor="owner">Owner</label>
           <input
-            id="baseBranch"
+            id="owner"
             type="text"
-            placeholder="main"
-            value={baseBranch}
-            onChange={(e) => setBaseBranch(e.target.value)}
+            placeholder="spring-projects"
+            value={owner}
+            onChange={(e) => setOwner(e.target.value)}
             required
             disabled={isLoading}
           />
         </div>
 
         <div className="field">
-          <label htmlFor="reviewBranch">
-            Review branch <span className="optional">(optional)</span>
-          </label>
+          <label htmlFor="repo">Repository</label>
           <input
-            id="reviewBranch"
+            id="repo"
             type="text"
-            placeholder="leave blank for working tree changes"
-            value={reviewBranch}
-            onChange={(e) => setReviewBranch(e.target.value)}
+            placeholder="spring-framework"
+            value={repo}
+            onChange={(e) => setRepo(e.target.value)}
+            required
+            disabled={isLoading}
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="pullNumber">Pull request #</label>
+          <input
+            id="pullNumber"
+            type="number"
+            min="1"
+            placeholder="123"
+            value={pullNumber}
+            onChange={(e) => setPullNumber(e.target.value)}
+            required
             disabled={isLoading}
           />
         </div>

@@ -1,9 +1,13 @@
 package local.agent.pullrequestreviewagent.agent;
 
 import local.agent.pullrequestreviewagent.ai.AiChatService;
-import local.agent.pullrequestreviewagent.git.ChangedFile;
+
+import local.agent.pullrequestreviewagent.github.ChangedFile;
+
 import local.agent.pullrequestreviewagent.review.ReviewResult;
+
 import local.agent.pullrequestreviewagent.tools.RepositoryTools;
+
 import org.springframework.stereotype.Component;
 
 import java.util.List;

@@ -1,13 +1,17 @@
 package local.agent.pullrequestreviewagent.tools;
 
-import local.agent.pullrequestreviewagent.git.GitContentService;
+import local.agent.pullrequestreviewagent.github.GitHubWorkspace;
+import local.agent.pullrequestreviewagent.github.GitHubContentService;
+
 import local.agent.pullrequestreviewagent.progress.ReviewProgressPublisher;
-import org.eclipse.jgit.lib.Repository;
+
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 
 import java.util.List;
+
 import java.util.concurrent.atomic.AtomicInteger;
+
 import java.util.function.Supplier;
 
 /**
@@ -21,26 +25,24 @@ public class RepositoryTools {
     private static final String SIDE_DESCRIPTION =
             "Which side of the review to read from: \"base\" for the base branch, or \"review\" for the branch/changes under review.";
 
-    private final Repository repository;
-    private final GitContentService gitContentService;
-    private final String baseBranch;
-    private final String reviewRef;
+    private final GitHubWorkspace workspace;
+    private final GitHubContentService gitHubContentService;
+    private final String baseSha;
+    private final String headSha;
     private final ReviewProgressPublisher progressPublisher;
     private final int maxCalls;
     private final AtomicInteger remainingCalls;
 
     /**
-     * @param reviewRef branch/commit name for the review side, or {@code null} when the
-     *                  review side is the working tree (uncommitted/untracked changes)
-     * @param maxCalls  total tool calls this instance allows across its lifetime
+     * @param maxCalls total tool calls this instance allows across its lifetime
      */
-    public RepositoryTools(Repository repository, GitContentService gitContentService,
-                            String baseBranch, String reviewRef, ReviewProgressPublisher progressPublisher,
+    public RepositoryTools(GitHubWorkspace workspace, GitHubContentService gitHubContentService,
+                            String baseSha, String headSha, ReviewProgressPublisher progressPublisher,
                             int maxCalls) {
-        this.repository = repository;
-        this.gitContentService = gitContentService;
-        this.baseBranch = baseBranch;
-        this.reviewRef = reviewRef;
+        this.workspace = workspace;
+        this.gitHubContentService = gitHubContentService;
+        this.baseSha = baseSha;
+        this.headSha = headSha;
         this.progressPublisher = progressPublisher;
         this.maxCalls = maxCalls;
         this.remainingCalls = new AtomicInteger(maxCalls);
@@ -51,7 +53,7 @@ public class RepositoryTools {
     public String readFile(@ToolParam(description = "Repository-relative file path, e.g. src/main/Foo.java") String path,
                             @ToolParam(description = SIDE_DESCRIPTION) String side) {
         return withBudget("Reading " + path + " (" + side + ")",
-                () -> gitContentService.readFile(repository, refFor(side), path));
+                () -> gitHubContentService.readFile(workspace.rootFor(shaFor(side)), path));
     }
 
     @Tool(description = "List files under a directory, to discover related files (tests, callers, config) near a changed file.")
@@ -59,7 +61,7 @@ public class RepositoryTools {
                                    @ToolParam(description = SIDE_DESCRIPTION) String side) {
         String label = directory == null || directory.isBlank() ? "repository root" : directory;
         return withBudget("Listing " + label + " (" + side + ")",
-                () -> gitContentService.listFiles(repository, refFor(side), directory));
+                () -> gitHubContentService.listFiles(workspace.rootFor(shaFor(side)), directory));
     }
 
     @Tool(description = "Search for a literal substring across all text files in the repository, to find other " +
@@ -67,15 +69,15 @@ public class RepositoryTools {
     public List<String> searchCode(@ToolParam(description = "Literal text to search for") String query,
                                     @ToolParam(description = SIDE_DESCRIPTION) String side) {
         return withBudget("Searching for \"" + query + "\" (" + side + ")",
-                () -> gitContentService.searchCode(repository, refFor(side), query));
+                () -> gitHubContentService.searchCode(workspace.rootFor(shaFor(side)), query));
     }
 
-    private String refFor(String side) {
+    private String shaFor(String side) {
         if ("base".equalsIgnoreCase(side)) {
-            return baseBranch;
+            return baseSha;
         }
         if ("review".equalsIgnoreCase(side)) {
-            return reviewRef;
+            return headSha;
         }
         throw new IllegalArgumentException("Unknown side \"" + side + "\"; expected \"base\" or \"review\".");
     }

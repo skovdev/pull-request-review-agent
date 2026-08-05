@@ -1,4 +1,4 @@
-package local.agent.pullrequestreviewagent.git;
+package local.agent.pullrequestreviewagent.github;
 
 import local.agent.pullrequestreviewagent.config.ReviewProperties;
 

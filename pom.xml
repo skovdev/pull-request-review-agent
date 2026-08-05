@@ -35,7 +35,6 @@
     <properties>
         <java.version>25</java.version>
         <spring-ai.version>2.0.1-SNAPSHOT</spring-ai.version>
-        <jgit.version>6.10.0.202406032230-r</jgit.version>
     </properties>
 
     <dependencyManagement>
@@ -46,11 +45,6 @@
                 <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.jgit</groupId>
-                <artifactId>org.eclipse.jgit</artifactId>
-                <version>${jgit.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

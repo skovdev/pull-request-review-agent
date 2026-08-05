@@ -2,17 +2,18 @@ package local.agent.pullrequestreviewagent.review;
 
 import local.agent.pullrequestreviewagent.agent.PullRequestReviewAgent;
 
-import local.agent.pullrequestreviewagent.git.ChangedFile;
-import local.agent.pullrequestreviewagent.git.DiffSanitizer;
-import local.agent.pullrequestreviewagent.git.GitDiffService;
-import local.agent.pullrequestreviewagent.git.GitRepositoryService;
+import local.agent.pullrequestreviewagent.github.ChangedFile;
+import local.agent.pullrequestreviewagent.github.GitHubClient;
+import local.agent.pullrequestreviewagent.github.DiffSanitizer;
+import local.agent.pullrequestreviewagent.github.GitHubWorkspace;
+import local.agent.pullrequestreviewagent.github.GitHubDiffService;
+import local.agent.pullrequestreviewagent.github.PullRequestContext;
+import local.agent.pullrequestreviewagent.github.GitHubWorkspaceFactory;
 
 import local.agent.pullrequestreviewagent.progress.ReviewProgressPublisher;
 
 import local.agent.pullrequestreviewagent.tools.RepositoryTools;
 import local.agent.pullrequestreviewagent.tools.RepositoryToolsFactory;
-
-import org.eclipse.jgit.lib.Repository;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,9 +22,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.any;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -32,36 +32,46 @@ import static org.mockito.Mockito.verify;
 
 class ReviewServiceTest {
 
-    private final GitRepositoryService gitRepositoryService = mock(GitRepositoryService.class);
-    private final GitDiffService gitDiffService = mock(GitDiffService.class);
+    private final GitHubClient gitHubClient = mock(GitHubClient.class);
+    private final GitHubWorkspaceFactory gitHubWorkspaceFactory = mock(GitHubWorkspaceFactory.class);
+    private final GitHubDiffService gitHubDiffService = mock(GitHubDiffService.class);
     private final DiffSanitizer diffSanitizer = mock(DiffSanitizer.class);
     private final PullRequestReviewAgent reviewAgent = mock(PullRequestReviewAgent.class);
     private final RepositoryToolsFactory repositoryToolsFactory = mock(RepositoryToolsFactory.class);
-    private final Repository repository = mock(Repository.class);
+    private final GitHubWorkspace workspace = mock(GitHubWorkspace.class);
 
     private final ReviewService reviewService = new ReviewService(
-            gitRepositoryService, gitDiffService, diffSanitizer, reviewAgent, repositoryToolsFactory);
+            gitHubClient, gitHubWorkspaceFactory, gitHubDiffService, diffSanitizer, reviewAgent, repositoryToolsFactory);
 
     @Test
-    void rejectsABlankRepositoryPath() {
-        assertThatThrownBy(() -> reviewService.review(" ", "main", "feature", ReviewProgressPublisher.NO_OP))
+    void rejectsABlankOwner() {
+        assertThatThrownBy(() -> reviewService.review(" ", "repo", 1, ReviewProgressPublisher.NO_OP))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("repositoryPath");
+                .hasMessageContaining("owner");
     }
 
     @Test
-    void rejectsABlankBaseBranch() {
-        assertThatThrownBy(() -> reviewService.review("/repo", " ", "feature", ReviewProgressPublisher.NO_OP))
+    void rejectsABlankRepo() {
+        assertThatThrownBy(() -> reviewService.review("owner", " ", 1, ReviewProgressPublisher.NO_OP))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("baseBranch");
+                .hasMessageContaining("repo");
+    }
+
+    @Test
+    void rejectsANonPositivePullNumber() {
+        assertThatThrownBy(() -> reviewService.review("owner", "repo", 0, ReviewProgressPublisher.NO_OP))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pullNumber");
     }
 
     @Test
     void returnsApproveWithNoFindingsWhenThereAreNoDifferences() {
-        when(gitRepositoryService.openRepository("/repo")).thenReturn(repository);
-        when(gitDiffService.diff(repository, "main", "feature")).thenReturn(List.of());
+        PullRequestContext pullRequest = new PullRequestContext("main", "base-sha", "feature", "head-sha");
+        when(gitHubClient.getPullRequest("owner", "repo", 42)).thenReturn(pullRequest);
+        when(gitHubWorkspaceFactory.create("owner", "repo")).thenReturn(workspace);
+        when(gitHubDiffService.diff("owner", "repo", "base-sha", "head-sha")).thenReturn(List.of());
 
-        ReviewResult result = reviewService.review("/repo", "main", "feature", ReviewProgressPublisher.NO_OP);
+        ReviewResult result = reviewService.review("owner", "repo", 42, ReviewProgressPublisher.NO_OP);
 
         assertThat(result.recommendation()).isEqualTo(Recommendation.APPROVE);
         assertThat(result.findings()).isEmpty();
@@ -71,38 +81,22 @@ class ReviewServiceTest {
     }
 
     @Test
-    void reviewsTheWorkingTreeWhenReviewBranchIsBlank() {
+    void reviewsThePullRequestAndClosesTheWorkspaceAfterward() {
         ChangedFile changedFile = new ChangedFile("Foo.java", ChangedFile.ChangeType.MODIFIED, "diff");
+        PullRequestContext pullRequest = new PullRequestContext("main", "base-sha", "feature", "head-sha");
         RepositoryTools tools = mock(RepositoryTools.class);
         ReviewResult expected = new ReviewResult("summary", Recommendation.COMMENT, List.of());
 
-        when(gitRepositoryService.openRepository("/repo")).thenReturn(repository);
-        when(gitDiffService.diffWorkingTree(repository, "main")).thenReturn(List.of(changedFile));
+        when(gitHubClient.getPullRequest("owner", "repo", 42)).thenReturn(pullRequest);
+        when(gitHubWorkspaceFactory.create("owner", "repo")).thenReturn(workspace);
+        when(gitHubDiffService.diff("owner", "repo", "base-sha", "head-sha")).thenReturn(List.of(changedFile));
         when(diffSanitizer.sanitize(List.of(changedFile))).thenReturn(List.of(changedFile));
-        when(repositoryToolsFactory.create(eq(repository), eq("main"), isNull(), any())).thenReturn(tools);
-        when(reviewAgent.review(eq("main"), any(), eq(List.of(changedFile)), eq(tools))).thenReturn(expected);
-
-        ReviewResult result = reviewService.review("/repo", "main", "  ", ReviewProgressPublisher.NO_OP);
-
-        assertThat(result).isEqualTo(expected);
-        verify(gitDiffService, never()).diff(any(), any(), any());
-    }
-
-    @Test
-    void reviewsTheGivenBranchWhenReviewBranchIsProvided() {
-        ChangedFile changedFile = new ChangedFile("Foo.java", ChangedFile.ChangeType.MODIFIED, "diff");
-        RepositoryTools tools = mock(RepositoryTools.class);
-        ReviewResult expected = new ReviewResult("summary", Recommendation.APPROVE, List.of());
-
-        when(gitRepositoryService.openRepository("/repo")).thenReturn(repository);
-        when(gitDiffService.diff(repository, "main", "feature")).thenReturn(List.of(changedFile));
-        when(diffSanitizer.sanitize(List.of(changedFile))).thenReturn(List.of(changedFile));
-        when(repositoryToolsFactory.create(eq(repository), eq("main"), eq("feature"), any())).thenReturn(tools);
+        when(repositoryToolsFactory.create(eq(workspace), eq("base-sha"), eq("head-sha"), any())).thenReturn(tools);
         when(reviewAgent.review(eq("main"), eq("feature"), eq(List.of(changedFile)), eq(tools))).thenReturn(expected);
 
-        ReviewResult result = reviewService.review("/repo", "main", "feature", ReviewProgressPublisher.NO_OP);
+        ReviewResult result = reviewService.review("owner", "repo", 42, ReviewProgressPublisher.NO_OP);
 
         assertThat(result).isEqualTo(expected);
-        verify(gitDiffService, never()).diffWorkingTree(any(), any());
+        verify(workspace).close();
     }
 }

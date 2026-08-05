@@ -1,12 +1,13 @@
 package local.agent.pullrequestreviewagent.tools;
 
-import local.agent.pullrequestreviewagent.git.GitContentService;
+import local.agent.pullrequestreviewagent.github.GitHubWorkspace;
+import local.agent.pullrequestreviewagent.github.GitHubContentService;
 
 import local.agent.pullrequestreviewagent.progress.ReviewProgressPublisher;
 
-import org.eclipse.jgit.lib.Repository;
-
 import org.junit.jupiter.api.Test;
+
+import java.nio.file.Path;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -21,30 +22,37 @@ import static org.mockito.Mockito.when;
 
 class RepositoryToolsTest {
 
-    private final GitContentService gitContentService = mock(GitContentService.class);
-    private final Repository repository = mock(Repository.class);
+    private final GitHubContentService gitHubContentService = mock(GitHubContentService.class);
+    private final GitHubWorkspace workspace = mock(GitHubWorkspace.class);
+    private final Path baseRoot = Path.of("/tmp/base-sha");
+    private final Path headRoot = Path.of("/tmp/head-sha");
     private final List<String> progressMessages = new ArrayList<>();
     private final ReviewProgressPublisher publisher = progressMessages::add;
 
+    RepositoryToolsTest() {
+        when(workspace.rootFor("base-sha")).thenReturn(baseRoot);
+        when(workspace.rootFor("head-sha")).thenReturn(headRoot);
+    }
+
     @Test
-    void readFileResolvesBaseSideToTheBaseBranch() {
-        RepositoryTools tools = new RepositoryTools(repository, gitContentService, "main", "feature", publisher, 20);
-        when(gitContentService.readFile(repository, "main", "Foo.java")).thenReturn("base content");
+    void readFileResolvesBaseSideToTheBaseSha() {
+        RepositoryTools tools = new RepositoryTools(workspace, gitHubContentService, "base-sha", "head-sha", publisher, 20);
+        when(gitHubContentService.readFile(baseRoot, "Foo.java")).thenReturn("base content");
 
         assertThat(tools.readFile("Foo.java", "base")).isEqualTo("base content");
     }
 
     @Test
-    void readFileResolvesReviewSideToTheReviewRef() {
-        RepositoryTools tools = new RepositoryTools(repository, gitContentService, "main", "feature", publisher, 20);
-        when(gitContentService.readFile(repository, "feature", "Foo.java")).thenReturn("review content");
+    void readFileResolvesReviewSideToTheHeadSha() {
+        RepositoryTools tools = new RepositoryTools(workspace, gitHubContentService, "base-sha", "head-sha", publisher, 20);
+        when(gitHubContentService.readFile(headRoot, "Foo.java")).thenReturn("review content");
 
         assertThat(tools.readFile("Foo.java", "review")).isEqualTo("review content");
     }
 
     @Test
     void rejectsAnUnknownSide() {
-        RepositoryTools tools = new RepositoryTools(repository, gitContentService, "main", "feature", publisher, 20);
+        RepositoryTools tools = new RepositoryTools(workspace, gitHubContentService, "base-sha", "head-sha", publisher, 20);
 
         assertThatThrownBy(() -> tools.readFile("Foo.java", "bogus"))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -52,8 +60,8 @@ class RepositoryToolsTest {
 
     @Test
     void throwsOnceTheToolCallBudgetIsExhausted() {
-        RepositoryTools tools = new RepositoryTools(repository, gitContentService, "main", "feature", publisher, 2);
-        when(gitContentService.readFile(any(), any(), any())).thenReturn("content");
+        RepositoryTools tools = new RepositoryTools(workspace, gitHubContentService, "base-sha", "head-sha", publisher, 2);
+        when(gitHubContentService.readFile(any(), any())).thenReturn("content");
 
         tools.readFile("A.java", "base");
         tools.readFile("B.java", "base");
@@ -64,8 +72,8 @@ class RepositoryToolsTest {
 
     @Test
     void publishesAProgressMessageForEachCall() {
-        RepositoryTools tools = new RepositoryTools(repository, gitContentService, "main", "feature", publisher, 20);
-        when(gitContentService.readFile(any(), any(), any())).thenReturn("content");
+        RepositoryTools tools = new RepositoryTools(workspace, gitHubContentService, "base-sha", "head-sha", publisher, 20);
+        when(gitHubContentService.readFile(any(), any())).thenReturn("content");
 
         tools.readFile("Foo.java", "review");
 

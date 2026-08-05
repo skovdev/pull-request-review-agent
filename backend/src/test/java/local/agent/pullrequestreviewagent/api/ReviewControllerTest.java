@@ -33,6 +33,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 
 import static org.mockito.Mockito.when;
@@ -57,7 +58,7 @@ class ReviewControllerTest {
 
     @Test
     void streamsProgressEventsFollowedByTheResult() throws Exception {
-        when(reviewService.review(anyString(), anyString(), any(), any())).thenAnswer(invocation -> {
+        when(reviewService.review(anyString(), anyString(), anyInt(), any())).thenAnswer(invocation -> {
             ReviewProgressPublisher publisher = invocation.getArgument(3);
             publisher.publish("Computing diff between main and feature…");
             publisher.publish("Reading Foo.java (review)");
@@ -67,7 +68,7 @@ class ReviewControllerTest {
         MvcResult mvcResult = mockMvc.perform(post("/api/reviews")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"repositoryPath":"/repo","baseBranch":"main","reviewBranch":"feature"}
+                                {"owner":"acme","repo":"widgets","pullNumber":42}
                                 """))
                 .andExpect(request().asyncStarted())
                 .andReturn();
@@ -88,13 +89,13 @@ class ReviewControllerTest {
 
     @Test
     void sendsAnErrorEventWhenTheReviewFails() throws Exception {
-        when(reviewService.review(anyString(), anyString(), any(), any()))
-                .thenThrow(new IllegalArgumentException("baseBranch must not be blank"));
+        when(reviewService.review(anyString(), anyString(), anyInt(), any()))
+                .thenThrow(new IllegalArgumentException("pullNumber must be positive"));
 
         MvcResult mvcResult = mockMvc.perform(post("/api/reviews")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"repositoryPath":"/repo","baseBranch":""}
+                                {"owner":"acme","repo":"widgets","pullNumber":0}
                                 """))
                 .andExpect(request().asyncStarted())
                 .andReturn();
@@ -104,6 +105,6 @@ class ReviewControllerTest {
 
         assertThat(mvcResult.getResponse().getContentAsString())
                 .contains("event:error")
-                .contains("data:baseBranch must not be blank");
+                .contains("data:pullNumber must be positive");
     }
 }

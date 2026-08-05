@@ -18,7 +18,7 @@ export interface ReviewResult {
 }
 
 export interface StartReviewRequest {
-  repositoryPath: string;
-  baseBranch: string;
-  reviewBranch?: string;
+  owner: string;
+  repo: string;
+  pullNumber: number;
 }

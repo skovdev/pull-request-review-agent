@@ -1,4 +1,4 @@
-package local.agent.pullrequestreviewagent.git;
+package local.agent.pullrequestreviewagent.github;
 
 public record ChangedFile(String path, ChangeType changeType, String diff) {
 

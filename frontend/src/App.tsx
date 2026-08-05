@@ -37,7 +37,7 @@ function App() {
     <div className="app">
       <header className="app-header">
         <h1>Pull Request Review Agent</h1>
-        <p>Point it at a local git repository and let the AI review your changes.</p>
+        <p>Point it at a GitHub pull request and let the AI review your changes.</p>
       </header>
 
       <ReviewForm onSubmit={handleSubmit} isLoading={status === 'loading'} />

@@ -59,9 +59,9 @@ public class ReviewController {
         try {
             ReviewProgressPublisher progressPublisher = message -> sendEvent(emitter, "progress", message);
             ReviewResult result = reviewService.review(
-                    request.repositoryPath(),
-                    request.baseBranch(),
-                    request.reviewBranch(),
+                    request.owner(),
+                    request.repo(),
+                    request.pullNumber(),
                     progressPublisher);
             sendEvent(emitter, "result", ReviewResponse.from(result));
             emitter.complete();

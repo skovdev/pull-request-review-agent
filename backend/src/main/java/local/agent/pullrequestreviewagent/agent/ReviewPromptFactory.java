@@ -1,6 +1,7 @@
 package local.agent.pullrequestreviewagent.agent;
 
-import local.agent.pullrequestreviewagent.git.ChangedFile;
+import local.agent.pullrequestreviewagent.github.ChangedFile;
+
 import org.springframework.stereotype.Component;
 
 import java.util.List;

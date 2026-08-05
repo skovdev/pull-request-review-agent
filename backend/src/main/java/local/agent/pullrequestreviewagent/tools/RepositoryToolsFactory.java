@@ -2,31 +2,26 @@ package local.agent.pullrequestreviewagent.tools;
 
 import local.agent.pullrequestreviewagent.config.ReviewProperties;
 
-import local.agent.pullrequestreviewagent.git.GitContentService;
+import local.agent.pullrequestreviewagent.github.GitHubWorkspace;
+import local.agent.pullrequestreviewagent.github.GitHubContentService;
 
 import local.agent.pullrequestreviewagent.progress.ReviewProgressPublisher;
-
-import org.eclipse.jgit.lib.Repository;
 
 import org.springframework.stereotype.Component;
 
 @Component
 public class RepositoryToolsFactory {
 
-    private final GitContentService gitContentService;
+    private final GitHubContentService gitHubContentService;
     private final int maxToolCallsPerReview;
 
-    public RepositoryToolsFactory(GitContentService gitContentService, ReviewProperties properties) {
-        this.gitContentService = gitContentService;
+    public RepositoryToolsFactory(GitHubContentService gitHubContentService, ReviewProperties properties) {
+        this.gitHubContentService = gitHubContentService;
         this.maxToolCallsPerReview = properties.maxToolCallsPerReview();
     }
 
-    /**
-     * @param reviewRef branch/commit name for the review side, or {@code null} when the
-     *                  review side is the working tree (uncommitted/untracked changes)
-     */
-    public RepositoryTools create(Repository repository, String baseBranch, String reviewRef,
+    public RepositoryTools create(GitHubWorkspace workspace, String baseSha, String headSha,
                                    ReviewProgressPublisher progressPublisher) {
-        return new RepositoryTools(repository, gitContentService, baseBranch, reviewRef, progressPublisher, maxToolCallsPerReview);
+        return new RepositoryTools(workspace, gitHubContentService, baseSha, headSha, progressPublisher, maxToolCallsPerReview);
     }
 }

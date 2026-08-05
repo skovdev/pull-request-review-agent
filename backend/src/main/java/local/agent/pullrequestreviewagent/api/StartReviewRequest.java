@@ -1,11 +1,12 @@
 package local.agent.pullrequestreviewagent.api;
 
 /**
- * @param reviewBranch branch to review, or blank/null to review the current
- *                      working tree's uncommitted and untracked changes instead
+ * @param owner      GitHub organization or user that owns the repository, e.g. "spring-projects"
+ * @param repo       repository name, e.g. "spring-framework"
+ * @param pullNumber pull request number to review
  */
 public record StartReviewRequest(
-        String repositoryPath,
-        String baseBranch,
-        String reviewBranch) {
+        String owner,
+        String repo,
+        int pullNumber) {
 }
