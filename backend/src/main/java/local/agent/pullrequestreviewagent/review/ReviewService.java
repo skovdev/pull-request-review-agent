@@ -2,6 +2,8 @@ package local.agent.pullrequestreviewagent.review;
 
 import local.agent.pullrequestreviewagent.agent.PullRequestReviewAgent;
 
+import local.agent.pullrequestreviewagent.config.ReviewProperties;
+
 import local.agent.pullrequestreviewagent.github.ChangedFile;
 import local.agent.pullrequestreviewagent.github.DiffSanitizer;
 import local.agent.pullrequestreviewagent.github.GitHubClient;
@@ -28,19 +30,25 @@ public class ReviewService {
     private final DiffSanitizer diffSanitizer;
     private final PullRequestReviewAgent reviewAgent;
     private final RepositoryToolsFactory repositoryToolsFactory;
+    private final GitHubReviewPublisher gitHubReviewPublisher;
+    private final boolean postReviewToGitHub;
 
     public ReviewService(GitHubClient gitHubClient,
                           GitHubWorkspaceFactory gitHubWorkspaceFactory,
                           GitHubDiffService gitHubDiffService,
                           DiffSanitizer diffSanitizer,
                           PullRequestReviewAgent reviewAgent,
-                          RepositoryToolsFactory repositoryToolsFactory) {
+                          RepositoryToolsFactory repositoryToolsFactory,
+                          GitHubReviewPublisher gitHubReviewPublisher,
+                          ReviewProperties properties) {
         this.gitHubClient = gitHubClient;
         this.gitHubWorkspaceFactory = gitHubWorkspaceFactory;
         this.gitHubDiffService = gitHubDiffService;
         this.diffSanitizer = diffSanitizer;
         this.reviewAgent = reviewAgent;
         this.repositoryToolsFactory = repositoryToolsFactory;
+        this.gitHubReviewPublisher = gitHubReviewPublisher;
+        this.postReviewToGitHub = properties.postReviewToGitHub();
     }
 
     /**
@@ -76,7 +84,15 @@ public class ReviewService {
             progressPublisher.publish(sanitizedFiles.size() + " file(s) changed. Asking the model to review…");
             RepositoryTools repositoryTools = repositoryToolsFactory.create(
                     workspace, pullRequest.baseSha(), pullRequest.headSha(), progressPublisher);
-            return reviewAgent.review(pullRequest.baseRef(), pullRequest.headRef(), sanitizedFiles, repositoryTools);
+            ReviewResult result =
+                    reviewAgent.review(pullRequest.baseRef(), pullRequest.headRef(), sanitizedFiles, repositoryTools);
+
+            if (postReviewToGitHub) {
+                gitHubReviewPublisher.publish(
+                        owner, repo, pullNumber, pullRequest.headSha(), changedFiles, result, progressPublisher);
+            }
+
+            return result;
         }
     }
 }

@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GitHubContentServiceTest {
 
     private final GitHubContentService gitHubContentService =
-            new GitHubContentService(new ReviewProperties(6_000, 60_000, 8_000, 200, 50, 2_000, 20, 3, 300_000));
+            new GitHubContentService(new ReviewProperties(6_000, 60_000, 8_000, 200, 50, 2_000, 20, 3, 300_000, false));
 
     @TempDir
     Path root;

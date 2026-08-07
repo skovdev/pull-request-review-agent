@@ -21,8 +21,9 @@ import java.util.List;
 import java.util.Arrays;
 
 /**
- * Thin wrapper over the three GitHub REST endpoints the review pipeline needs: pull request
- * metadata, a file-level diff between two commits, and a full source snapshot at a commit.
+ * Thin wrapper over the GitHub REST endpoints the review pipeline needs: pull request metadata,
+ * a file-level diff between two commits, a full source snapshot at a commit, and submitting the
+ * finished review back to the pull request.
  *
  * <p>The archive download ({@link #downloadZipball}) is done with a raw {@link HttpClient}
  * rather than {@link RestClient}: GitHub answers it with a redirect to a signed
@@ -68,6 +69,29 @@ public class GitHubClient {
         CompareResponse response = get(
                 "/repos/{owner}/{repo}/compare/{base}...{head}", CompareResponse.class, owner, repo, base, head);
         return response == null || response.files() == null ? List.of() : response.files();
+    }
+
+    /**
+     * Submits a pull request review to GitHub: an overall verdict ({@code event}) with a summary
+     * body, plus zero or more inline comments anchored to specific file/line pairs in the diff.
+     * {@code commitSha} pins the review to the commit it was actually computed against, rather
+     * than trusting GitHub to default to "whatever the PR's head is right now" (which could have
+     * moved if new commits landed mid-review).
+     *
+     * <p>GitHub rejects (422) any comment whose {@code line} isn't part of that file's diff
+     * hunks against {@code commitSha} — callers are responsible for only passing comments the
+     * diff can actually anchor.
+     */
+    public SubmittedReview submitReview(String owner, String repo, int pullNumber, String commitSha,
+                                         String body, String event, List<ReviewComment> comments) {
+        SubmitReviewRequest request = new SubmitReviewRequest(commitSha, body, event, comments);
+        SubmitReviewResponse response = post(
+                "/repos/{owner}/{repo}/pulls/{pull_number}/reviews", request, SubmitReviewResponse.class,
+                owner, repo, pullNumber);
+        if (response == null) {
+            throw new GitHubApiException("Malformed review response for " + owner + "/" + repo + "#" + pullNumber);
+        }
+        return new SubmittedReview(response.id(), response.htmlUrl(), response.state());
     }
 
     public byte[] downloadZipball(String owner, String repo, String ref) {
@@ -119,6 +143,19 @@ public class GitHubClient {
         }
     }
 
+    private <T> T post(String uriTemplate, Object body, Class<T> responseType, Object... uriVariables) {
+        try {
+            return restClient.post()
+                    .uri(uriTemplate, uriVariables)
+                    .body(body)
+                    .retrieve()
+                    .body(responseType);
+        } catch (RestClientException e) {
+            throw new GitHubApiException(
+                    "GitHub API request failed: " + uriTemplate + " " + Arrays.toString(uriVariables), e);
+        }
+    }
+
     private record PullRequestResponse(Ref base, Ref head) {
         private record Ref(String ref, String sha) {
         }
@@ -133,5 +170,31 @@ public class GitHubClient {
             @JsonProperty("previous_filename") String previousFilename,
             String patch
     ) {
+    }
+
+    private record SubmitReviewRequest(
+            @JsonProperty("commit_id") String commitId,
+            String body,
+            String event,
+            List<ReviewComment> comments
+    ) {
+    }
+
+    /**
+     * One inline review comment. Always anchored to the "new" (right-hand, i.e. post-change)
+     * side of the diff, since GitHub defaults {@code side} to {@code RIGHT} when omitted and
+     * this pipeline has no use case for commenting on the base side.
+     */
+    public record ReviewComment(String path, int line, String body) {
+    }
+
+    private record SubmitReviewResponse(
+            long id,
+            @JsonProperty("html_url") String htmlUrl,
+            String state
+    ) {
+    }
+
+    public record SubmittedReview(long id, String htmlUrl, String state) {
     }
 }

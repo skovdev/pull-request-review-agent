@@ -27,7 +27,8 @@ Two modules: `backend` (Spring Boot / Java 25, Maven multi-module root + `backen
 
 ```bash
 export OPENAI_API_KEY=sk-...
-export GITHUB_TOKEN=ghp_...        # needs read access to pull requests + contents on the target repo
+export GITHUB_TOKEN=ghp_...        # needs read access to pull requests + contents; also needs pull
+                                    # request *write* access if review.postReviewToGitHub is enabled
 ./mvnw -pl backend spring-boot:run        # run the server (port 8080)
 ./mvnw -pl backend test                   # run all backend tests
 ./mvnw -pl backend test -Dtest=GitHubDiffServiceTest              # single test class
@@ -36,7 +37,8 @@ export GITHUB_TOKEN=ghp_...        # needs read access to pull requests + conten
 ```
 
 Config lives in `backend/src/main/resources/application.properties` (model, max tokens, `github.token`) and
-`ReviewProperties` (`review.*` prefix — diff size limits, tool-call budget, retry count, SSE timeout; see
+`ReviewProperties` (`review.*` prefix — diff size limits, tool-call budget, retry count, SSE timeout, and
+whether to post the finished review back to GitHub (`postReviewToGitHub`, default `false`); see
 `config/ReviewProperties.java` for defaults). GitHub API access (token, API base URL for GitHub Enterprise) is
 `GitHubProperties` (`github.*` prefix).
 
@@ -79,6 +81,16 @@ Request flow (`ReviewController` → `ReviewService` → `PullRequestReviewAgent
 7. **Result** — the model's final turn is coerced into a structured `ReviewResult` (summary, recommendation,
    findings) via Spring AI's structured output, then streamed to the client over SSE. `GitHubWorkspace` is
    closed in a `finally`, deleting its temp directory regardless of outcome.
+8. **Post to GitHub (opt-in)** — if `review.postReviewToGitHub` is enabled, `GitHubReviewPublisher` submits the
+   result as a real GitHub review (`GitHubClient.submitReview`,
+   `POST /repos/{owner}/{repo}/pulls/{number}/reviews`) anchored to the head SHA the diff was actually computed
+   against. Findings map to inline comments only when their `line` falls inside that file's diff hunks — GitHub
+   otherwise rejects the whole request with 422 — which `UnifiedDiffLines.commentableNewLines` checks per file
+   using the same unsanitized patch text `GitHubDiffService` returned (not the possibly-truncated text
+   `DiffSanitizer` sent to the model). Findings that don't qualify (unanchorable line, or a deleted file, since
+   comments are always posted to the new/right side of the diff) are folded into the review body text instead of
+   being dropped. This step never throws: a review that was already computed successfully still reaches the SSE
+   client even if the GitHub write fails, with the failure only reported via a `progress` event.
 
 ### Streaming (SSE)
 
@@ -95,14 +107,16 @@ itself.
 ### Package layout (`backend/src/main/java/local/agent/pullrequestreviewagent/`)
 
 - `github/` — GitHub-backed repository access: `GitHubClient` (REST calls: PR metadata, compare diff, zipball
-  download), `GitHubDiffService` (compare API → `ChangedFile`), `GitHubContentService` (read/list/search over
-  an extracted zipball directory), `GitHubWorkspace`/`GitHubWorkspaceFactory` (lazy per-SHA zipball extraction
-  and cleanup), `ChangedFile`, `DiffSanitizer`.
+  download, review submission), `GitHubDiffService` (compare API → `ChangedFile`), `GitHubContentService`
+  (read/list/search over an extracted zipball directory), `GitHubWorkspace`/`GitHubWorkspaceFactory` (lazy
+  per-SHA zipball extraction and cleanup), `ChangedFile`, `DiffSanitizer`, `UnifiedDiffLines` (which new-file
+  lines a unified diff's hunks make commentable).
 - `tools/` — `RepositoryTools` (the `@Tool`-annotated methods bound to the model) and its per-request factory.
 - `agent/` — the agent itself and prompt construction.
 - `ai/` — thin abstraction (`AiChatService`) over the Spring AI `ChatClient` call with retry logic, so the
   agent isn't coupled directly to Spring AI's API.
-- `review/` — `ReviewService` (orchestrates the pipeline) and the result/finding/recommendation model types.
+- `review/` — `ReviewService` (orchestrates the pipeline), `GitHubReviewPublisher` (posts the result back to
+  GitHub as a review), and the result/finding/recommendation model types.
 - `api/` — `ReviewController` and request/response DTOs.
 - `progress/` — the SSE progress publisher abstraction.
 - `config/` — `ReviewProperties` (diff/tool-call/retry tunables), `GitHubProperties` (token, API base URL),
@@ -111,7 +125,8 @@ itself.
 ### GitHub API notes
 
 - Auth is a bearer token (`github.token`, from `GITHUB_TOKEN`) needing read access to pull requests and
-  contents — a classic PAT's `repo` scope, or a fine-grained PAT/GitHub App with those two permissions.
+  contents — a classic PAT's `repo` scope, or a fine-grained PAT/GitHub App with those two permissions. With
+  `review.postReviewToGitHub` enabled, it also needs pull request *write* access to submit reviews.
 - The zipball download (`GitHubClient.downloadZipball`) is done with a raw `java.net.http.HttpClient` rather
   than `RestClient`: GitHub answers with a redirect to a signed `codeload.github.com` URL, and that hop is
   followed as an explicit second request carrying the same auth header, rather than relying on

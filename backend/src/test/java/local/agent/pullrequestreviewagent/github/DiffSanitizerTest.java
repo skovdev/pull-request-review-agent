@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DiffSanitizerTest {
 
     private final DiffSanitizer diffSanitizer =
-            new DiffSanitizer(new ReviewProperties(6_000, 60_000, 8_000, 200, 50, 2_000, 20, 3, 300_000));
+            new DiffSanitizer(new ReviewProperties(6_000, 60_000, 8_000, 200, 50, 2_000, 20, 3, 300_000, false));
 
     @Test
     void omitsLockfileDiffs() {
