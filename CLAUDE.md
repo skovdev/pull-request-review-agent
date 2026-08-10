@@ -109,8 +109,9 @@ itself.
 - `github/` — GitHub-backed repository access: `GitHubClient` (REST calls: PR metadata, compare diff, zipball
   download, review submission), `GitHubDiffService` (compare API → `ChangedFile`), `GitHubContentService`
   (read/list/search over an extracted zipball directory), `GitHubWorkspace`/`GitHubWorkspaceFactory` (lazy
-  per-SHA zipball extraction and cleanup), `ChangedFile`, `DiffSanitizer`, `UnifiedDiffLines` (which new-file
-  lines a unified diff's hunks make commentable).
+  per-SHA zipball extraction and cleanup).
+- `diff/` — diff domain model and logic, independent of GitHub transport: `ChangedFile`, `DiffSanitizer`,
+  `UnifiedDiffLines` (which new-file lines a unified diff's hunks make commentable).
 - `tools/` — `RepositoryTools` (the `@Tool`-annotated methods bound to the model) and its per-request factory.
 - `agent/` — the agent itself and prompt construction.
 - `ai/` — thin abstraction (`AiChatService`) over the Spring AI `ChatClient` call with retry logic, so the

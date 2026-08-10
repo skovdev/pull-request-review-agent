@@ -1,8 +1,8 @@
 package local.agent.pullrequestreviewagent.review;
 
-import local.agent.pullrequestreviewagent.github.ChangedFile;
+import local.agent.pullrequestreviewagent.diff.ChangedFile;
 import local.agent.pullrequestreviewagent.github.GitHubClient;
-import local.agent.pullrequestreviewagent.github.UnifiedDiffLines;
+import local.agent.pullrequestreviewagent.diff.UnifiedDiffLines;
 
 import local.agent.pullrequestreviewagent.progress.ReviewProgressPublisher;
 

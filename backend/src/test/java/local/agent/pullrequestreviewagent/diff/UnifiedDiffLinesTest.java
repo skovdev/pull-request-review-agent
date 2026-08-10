@@ -1,4 +1,4 @@
-package local.agent.pullrequestreviewagent.github;
+package local.agent.pullrequestreviewagent.diff;
 
 import org.junit.jupiter.api.Test;
 

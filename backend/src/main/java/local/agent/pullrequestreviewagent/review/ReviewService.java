@@ -4,8 +4,8 @@ import local.agent.pullrequestreviewagent.agent.PullRequestReviewAgent;
 
 import local.agent.pullrequestreviewagent.config.ReviewProperties;
 
-import local.agent.pullrequestreviewagent.github.ChangedFile;
-import local.agent.pullrequestreviewagent.github.DiffSanitizer;
+import local.agent.pullrequestreviewagent.diff.ChangedFile;
+import local.agent.pullrequestreviewagent.diff.DiffSanitizer;
 import local.agent.pullrequestreviewagent.github.GitHubClient;
 import local.agent.pullrequestreviewagent.github.GitHubWorkspace;
 import local.agent.pullrequestreviewagent.github.GitHubDiffService;

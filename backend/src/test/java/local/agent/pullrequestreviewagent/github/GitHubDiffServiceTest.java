@@ -1,5 +1,7 @@
 package local.agent.pullrequestreviewagent.github;
 
+import local.agent.pullrequestreviewagent.diff.ChangedFile;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

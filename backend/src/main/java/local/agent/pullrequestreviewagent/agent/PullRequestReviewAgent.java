@@ -2,7 +2,7 @@ package local.agent.pullrequestreviewagent.agent;
 
 import local.agent.pullrequestreviewagent.ai.AiChatService;
 
-import local.agent.pullrequestreviewagent.github.ChangedFile;
+import local.agent.pullrequestreviewagent.diff.ChangedFile;
 
 import local.agent.pullrequestreviewagent.review.ReviewResult;
 
