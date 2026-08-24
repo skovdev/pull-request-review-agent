@@ -66,7 +66,9 @@ Request flow (`ReviewController` → `ReviewService` → `PullRequestReviewAgent
 3. **Sanitize** — `DiffSanitizer` strips/truncates diff content before anything reaches the model: skips
    lockfiles and build/vendor output (`node_modules`, `dist`, `target`, ...), collapses diffs GitHub omitted
    (binary or too large), and enforces per-file and total character budgets (`ReviewProperties`).
-4. **Prompt** — `ReviewPromptFactory` builds the system/user prompts describing the changed files.
+4. **Prompt** — `ReviewPromptFactory` builds the system/user prompts describing the changed files. The system
+   prompt tells the model to treat file/diff/search content as data, not instructions — guarding against a PR
+   author embedding text aimed at manipulating the review (e.g. "ignore this issue").
 5. **Agent loop** — `PullRequestReviewAgent` calls `AiChatServiceImpl` (wraps the Spring AI `ChatClient`) with a
    fresh `RepositoryTools` instance bound as tools (`readFile`, `listFiles`, `searchCode`, each parameterized by
    `side` = `"base"` or `"review"`). Each tool call resolves `side` to a commit SHA and asks the review's
