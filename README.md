@@ -12,6 +12,9 @@ There is no local clone: the diff comes from GitHub's compare API, and file/dire
 served from a per-review temp directory that's lazily populated by downloading and extracting GitHub's
 zipball archive for whichever commit SHA (base or head) the model actually asks about.
 
+Two modules: `backend` (Spring Boot on Java 25 — a Maven multi-module root plus a `backend` submodule) and
+`frontend` (React 19 + TypeScript + Vite).
+
 ## How it works
 
 1. **Fetch PR metadata** — `GitHubClient.getPullRequest` resolves the PR's base/head branches and SHAs.
@@ -49,14 +52,16 @@ request and discarded after.
 
 ### Backend
 
-Requires an OpenAI API key and a GitHub token with read access to pull requests and contents (a classic PAT's
-`repo` scope, or a fine-grained PAT/GitHub App with those two permissions). Posting reviews back to GitHub is
-off by default; enabling it (`review.postReviewToGitHub=true`) also needs pull request *write* access.
+Requires JDK 25, an OpenAI API key, and a GitHub token with read access to pull requests and contents (a
+classic PAT's `repo` scope, or a fine-grained PAT/GitHub App with those two permissions). Posting reviews back
+to GitHub is off by default; enabling it (`review.postReviewToGitHub=true`) also needs pull request *write*
+access.
 
 ```bash
 export OPENAI_API_KEY=sk-...
 export GITHUB_TOKEN=ghp_...
-./mvnw -pl backend spring-boot:run
+./mvnw -pl backend spring-boot:run        # server on port 8080
+./mvnw -pl backend test                   # run the backend tests
 ```
 
 Config lives in `backend/src/main/resources/application.properties` (model, max tokens, `github.token`) and
