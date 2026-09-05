@@ -48,6 +48,29 @@ It's a single agent, not a multi-agent system: no planner/critic split, no sub-a
 between reviews — a fresh `RepositoryTools` instance, backed by a fresh per-review workspace, is created per
 request and discarded after.
 
+## Project structure
+
+Backend packages under `backend/src/main/java/local/agent/pullrequestreviewagent/`:
+
+- `github/` — GitHub-backed repository access: `GitHubClient` (REST: PR metadata, compare diff, zipball
+  download, review submission), `GitHubDiffService` (compare API → `ChangedFile`), `GitHubContentService`
+  (read/list/search over an extracted zipball), `GitHubWorkspace`/`GitHubWorkspaceFactory` (lazy per-SHA
+  zipball extraction and cleanup).
+- `diff/` — diff domain model and logic, independent of GitHub transport: `ChangedFile`, `DiffSanitizer`,
+  `UnifiedDiffLines` (which new-file lines a unified diff's hunks make commentable).
+- `tools/` — `RepositoryTools` (the `@Tool`-annotated methods bound to the model) and its per-request factory.
+- `agent/` — `PullRequestReviewAgent` and prompt construction (`ReviewPromptFactory`).
+- `ai/` — `AiChatService`, a thin abstraction over the Spring AI `ChatClient` call with retry logic.
+- `review/` — `ReviewService` (orchestrates the pipeline), `GitHubReviewPublisher` (posts the result back to
+  GitHub), and the result/finding/recommendation model types.
+- `api/` — `ReviewController` and request/response DTOs.
+- `progress/` — the SSE progress publisher abstraction.
+- `config/` — `ReviewProperties` (diff/tool-call/retry tunables), `GitHubProperties` (token, API base URL),
+  `AiConfig` (`ChatClient` bean), `AsyncConfig` (review executor), `WebConfig`.
+
+The `frontend/` module is a React 19 + TypeScript + Vite client that starts a review and renders the live SSE
+stream.
+
 ## Running it
 
 ### Backend
